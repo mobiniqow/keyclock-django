@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>پروفایل</title>
+</head>
+<body>
+    <h1>پروفایل کاربری</h1>
+    <p>نام: {{ user_info['preferred_username'] }}</p>
+    <p>ایمیل: {{ user_info['email'] }}</p>
+    <a href="{% url 'logout' %}">خروج</a>
+</body>
+</html>
