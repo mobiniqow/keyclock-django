@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'myapp',
     'rest_framework',
     'rest_framework_simplejwt',
 ]
@@ -124,7 +125,13 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-KEYCLOAK_SERVER_URL = 'http://localhost:8080/auth/'
+KEYCLOAK_SERVER_URL = 'http://localhost:8880/auth/'
 KEYCLOAK_REALM = 'your-realm'
 KEYCLOAK_CLIENT_ID = 'your-client-id'
 KEYCLOAK_CLIENT_SECRET = 'your-client-secret'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+}

@@ -3,7 +3,10 @@
 from django.shortcuts import render, redirect
 from django.conf import settings
 from keycloak import KeycloakOpenID
-from django.contrib.auth.decorators import login_required
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+import requests
 
 keycloak_openid = KeycloakOpenID(
     server_url=settings.KEYCLOAK_SERVER_URL,
@@ -24,16 +27,56 @@ def callback(request):
     # دریافت توکن
     token = keycloak_openid.token(code=code, redirect_uri=redirect_uri)
     request.session['token'] = token
-    return redirect('profile')
+    return redirect('verify_otp')
 
-@login_required
-def profile(request):
-    token = request.session.get('token')
-    if not token:
-        return redirect('login')
-    
-    user_info = keycloak_openid.userinfo(token['access_token'])
-    return render(request, 'profile.html', {'user_info': user_info})
+def verify_otp(request):
+    if request.method == 'POST':
+        otp_code = request.POST.get('otp_code')
+        token = request.session.get('token')
+
+        # ارسال OTP به Keycloak
+        response = requests.post(
+            f"{settings.KEYCLOAK_SERVER_URL}{settings.KEYCLOAK_REALM}/protocol/openid-connect/token",
+            data={
+                'grant_type': 'urn:ietf:params:oauth:grant-type:otp',
+                'otp': otp_code,
+                'client_id': settings.KEYCLOAK_CLIENT_ID,
+                'client_secret': settings.KEYCLOAK_CLIENT_SECRET,
+            },
+        )
+
+        if response.status_code == 200:
+            # ذخیره توکن در سشن
+            request.session['token'] = response.json()
+            return redirect('profile')
+        else:
+            return render(request, 'verify_otp.html', {'error': 'Invalid OTP'})
+
+    return render(request, 'verify_otp.html')
+
+class ProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        token = request.session.get('token')
+        user_info = keycloak_openid.userinfo(token['access_token'])
+        return Response(user_info)
+
+    def post(self, request):
+        token = request.session.get('token')
+        user_info = request.data
+        
+        # ارسال اطلاعات به Keycloak برای به‌روزرسانی پروفایل
+        response = requests.put(
+            f"{settings.KEYCLOAK_SERVER_URL}{settings.KEYCLOAK_REALM}/protocol/openid-connect/userinfo",
+            headers={'Authorization': f'Bearer {token["access_token"]}'},
+            json=user_info,
+        )
+        
+        if response.status_code == 204:
+            return Response({'message': 'Profile updated successfully.'})
+        else:
+            return Response({'error': 'Failed to update profile.'})
 
 def logout(request):
     request.session.pop('token', None)
